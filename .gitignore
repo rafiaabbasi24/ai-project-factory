@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+n8n_data/
+*.log
+.DS_Store
+Thumbs.db

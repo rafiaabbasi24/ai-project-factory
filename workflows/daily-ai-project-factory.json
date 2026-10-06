@@ -1,0 +1,974 @@
+{
+  "name": "AI Daily Project Factory \u2014 Groq + HF + GitHub + Supabase",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        40
+      ],
+      "id": "4767fc18-d712-4360-8f40-f3b80fcb2455",
+      "name": "Manual Test"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -120,
+        180
+      ],
+      "id": "de5e4b76-7c67-49f4-a10c-e871d6b355d7",
+      "name": "Daily 08:00 IST"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst categories = (process.env.PROJECT_CATEGORIES || 'LLM,Generative AI,Machine Learning,Deep Learning,NLP,Transformers,Reinforcement Learning')\n  .split(',').map(s => s.trim()).filter(Boolean);\nconst idx = (new Date().getDay() + 6) % 7;\nconst category = categories[idx % categories.length] || 'Generative AI';\nconst map = {\n  'LLM': {github:'large language model LLM OR RAG OR agent', hf:'language model'},\n  'Generative AI': {github:'generative AI OR diffusion OR multimodal', hf:'generative'},\n  'Machine Learning': {github:'machine learning classification regression anomaly detection', hf:'tabular classification'},\n  'Deep Learning': {github:'deep learning CNN computer vision neural network', hf:'image classification'},\n  'NLP': {github:'NLP natural language processing sentiment NER text classification', hf:'text classification'},\n  'Transformers': {github:'transformers BERT ViT encoder decoder attention', hf:'transformers'},\n  'Reinforcement Learning': {github:'reinforcement learning DQN PPO Q-learning gymnasium', hf:'reinforcement learning'},\n};\nconst cfg = map[category] || map['Generative AI'];\nreturn [{json:{category, github_query:cfg.github, hf_query:cfg.hf, date:new Date().toISOString()}}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        110
+      ],
+      "id": "dab0f9c4-0901-46ad-8c51-08e8408a0286",
+      "name": "Topic Router"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/search/repositories",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.github_query + ' stars:>=5' }}"
+            },
+            {
+              "name": "sort",
+              "value": "updated"
+            },
+            {
+              "name": "order",
+              "value": "desc"
+            },
+            {
+              "name": "per_page",
+              "value": "5"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GITHUB_TOKEN }}"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2026-03-10"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        360,
+        0
+      ],
+      "id": "bfffcd07-2981-4d75-b8b5-6d6fe5e1dab1",
+      "name": "GitHub Search"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.HF_API_URL + '/models' }}",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ $('Topic Router').item.json.hf_query }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            },
+            {
+              "name": "sort",
+              "value": "downloads"
+            },
+            {
+              "name": "direction",
+              "value": "-1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        360,
+        140
+      ],
+      "id": "68397d31-df62-4f13-8d5c-1f8b4a16a1d4",
+      "name": "HF Models Search"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.HF_API_URL + '/datasets' }}",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ $('Topic Router').item.json.hf_query }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            },
+            {
+              "name": "sort",
+              "value": "downloads"
+            },
+            {
+              "name": "direction",
+              "value": "-1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        360,
+        280
+      ],
+      "id": "c379c064-aa3c-49a6-8ba8-16f9835aff1e",
+      "name": "HF Datasets Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst topic = $('Topic Router').first().json;\nconst gh = $('GitHub Search').first().json || {};\nconst models = $('HF Models Search').all().map(x => x.json).flat().slice(0, Number(process.env.MAX_SOURCE_ITEMS || 5));\nconst datasets = $('HF Datasets Search').all().map(x => x.json).flat().slice(0, Number(process.env.MAX_SOURCE_ITEMS || 5));\nconst allowed = new Set(['MIT','Apache-2.0','BSD-2-Clause','BSD-3-Clause','MPL-2.0','ISC','CC0-1.0']);\nconst github = (gh.items || []).map(r => ({\n  type:'github', name:r.full_name, url:r.html_url, description:r.description,\n  license:r.license?.spdx_id || null, stars:r.stargazers_count || 0,\n  language:r.language || null,\n})).filter(r => r.license && allowed.has(r.license)).slice(0, Number(process.env.MAX_SOURCE_ITEMS || 5));\nconst hfModels = models.map(m => ({type:'huggingface-model', name:m.id, url:`https://huggingface.co/${m.id}`,\n  license:m.cardData?.license || m.license || null, pipeline_tag:m.pipeline_tag || null,\n  downloads:m.downloads || 0, likes:m.likes || 0}));\nconst hfDatasets = datasets.map(d => ({type:'huggingface-dataset', name:d.id, url:`https://huggingface.co/datasets/${d.id}`,\n  license:d.cardData?.license || d.license || null, downloads:d.downloads || 0, likes:d.likes || 0}));\nreturn [{json:{...topic, sources:{github,huggingface_models:hfModels,huggingface_datasets:hfDatasets}}}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        140
+      ],
+      "id": "adc3583d-ec2e-47b1-882e-8ef9bb9eff1c",
+      "name": "Source Pack"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions' }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GROQ_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model:$env.GROQ_MODEL || 'openai/gpt-oss-120b',temperature:0.2,max_completion_tokens:6500,response_format:{type:'json_object'},messages:[{role:'user',content:`You are the lead engineer of an autonomous AI project factory. Create ONE original, portfolio-ready project for category: ${$json.category}. Current date: ${$json.date}. Reference material from GitHub/Hugging Face is context only; do not copy source code. Respect license information and include source links in the project README. The project must be runnable by a student on a normal laptop or CPU unless the category genuinely needs a model API. Prefer compact, practical projects that can be published publicly. Use modern Python-first tooling unless another stack is clearly better. Return VALID JSON ONLY with these keys: project_name, repo_name, one_line, description, difficulty, tech_stack (array), learning_outcomes (array), sources (array of objects with type,name,url,license), files (array of objects with path,purpose,language,required). Limit files to ${$env.MAX_FILES || 14}. Files should include a README.md, dependency file, .gitignore, source code, tests, and configuration as appropriate. Do not include binary files, model weights, secrets, or huge datasets. Generate an original implementation. Source pack: ${JSON.stringify($json.sources)}`}]}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        140
+      ],
+      "id": "a12f555c-831a-4815-ba4d-d7077ee435c6",
+      "name": "Groq Planner"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $json?.choices?.[0]?.message?.content;\nif (!raw) throw new Error('Groq planner returned no content');\nlet plan;\ntry { plan = JSON.parse(raw); } catch (e) {\n  const cleaned = raw.replace(/^```json\\s*/,'').replace(/^```\\s*/,'').replace(/```$/,'').trim();\n  plan = JSON.parse(cleaned);\n}\nconst safe = v => typeof v === 'string' ? v.trim() : '';\nplan.project_name = safe(plan.project_name) || 'AI Daily Project';\nplan.repo_name = (safe(plan.repo_name) || plan.project_name.toLowerCase()).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);\nplan.files = Array.isArray(plan.files) ? plan.files : [];\nplan.sources = Array.isArray(plan.sources) ? plan.sources : [];\nreturn [{json:{...$('Source Pack').first().json, plan}}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        140
+      ],
+      "id": "332d3776-2581-4270-94e0-17b0cbb9408f",
+      "name": "Parse Plan"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_REST_URL + '/projects?select=repo_name,github_url,status&repo_name=eq.' + encodeURIComponent($json.plan.repo_name) }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        140
+      ],
+      "id": "f4eb1821-1de6-48f7-add7-3bdb9b888917",
+      "name": "Supabase Repo Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst base = $('Parse Plan').first().json;\nconst existing = $('Supabase Repo Check').all().map(x => x.json).flat();\nlet repo = base.plan.repo_name;\nif (existing.length) repo = `${repo}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`;\nbase.plan.repo_name = repo;\nbase.plan.repo_name = base.plan.repo_name.slice(0,90);\nreturn [{json:base}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        140
+      ],
+      "id": "bfb9570f-2834-4a5e-a810-3d1a843eba32",
+      "name": "Finalize Repo Name"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.GITHUB_API_URL + '/repos/' + $env.GITHUB_OWNER + '/' + $json.plan.repo_name }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2026-03-10"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GITHUB_TOKEN }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        140
+      ],
+      "id": "ce87187d-701a-4a19-8938-03c39827c0c5",
+      "name": "GitHub Repo Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst base = $('Finalize Repo Name').first().json;\nconst check = $('GitHub Repo Check').first().json || {};\nif (check.statusCode === 200 || check.body?.id) {\n  base.plan.repo_name = `${base.plan.repo_name}-${Date.now().toString().slice(-6)}`;\n}\nreturn [{json:base}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        140
+      ],
+      "id": "740c3b10-4ec4-4dc4-b807-c8be343f6866",
+      "name": "Prepare Publish Record"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_REST_URL + '/projects' }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({project_name:$json.plan.project_name,repo_name:$json.plan.repo_name,category:$json.category,description:$json.plan.description,difficulty:$json.plan.difficulty,tech_stack:$json.plan.tech_stack || [],source_urls:($json.plan.sources || []).map(s=>s.url).filter(Boolean),plan:$json.plan,github_owner:$env.GITHUB_OWNER,status:'publishing',generation_run_id:$execution.id}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        140
+      ],
+      "id": "ee2f9473-7d8e-4adf-84c5-2eb9cd49bdea",
+      "name": "Supabase Insert Project"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GITHUB_API_URL + '/user/repos' }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GITHUB_TOKEN }}"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2026-03-10"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({name:$('Prepare Publish Record').first().json.plan.repo_name,description:$('Prepare Publish Record').first().json.plan.one_line || $('Prepare Publish Record').first().json.plan.description,private:(($env.PROJECT_VISIBILITY||'public').toLowerCase()==='private'),auto_init:false,has_issues:true,has_projects:false,has_wiki:false}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2520,
+        140
+      ],
+      "id": "31767c0b-99c3-42b3-bfe7-28a37b99d14a",
+      "name": "GitHub Create Repository"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst base = $('Prepare Publish Record').first().json;\nconst plan = base.plan;\nlet files = Array.isArray(plan.files) ? plan.files.map(f => ({...f, required: f.required !== false})) : [];\nfiles = files.filter((f,i) => i < Number(process.env.MAX_FILES || 14));\nif (!files.some(f => f.path === 'README.md')) files.unshift({path:'README.md',purpose:'Project README with setup, usage, architecture, learning outcomes and source attribution.',language:'markdown',required:true});\nif (!files.some(f => f.path === '.gitignore')) files.push({path:'.gitignore',purpose:'Ignore secrets, virtual environments, caches and local artifacts.',language:'text',required:true});\nfiles.push({path:'.github/workflows/ci.yml',purpose:'Generated by the factory. Validate Python/Node/Docker projects automatically.',language:'yaml',required:true,static_content:\"name: CI\\n\\non:\\n  push:\\n    branches: [\\\"main\\\", \\\"master\\\"]\\n  pull_request:\\n    branches: [\\\"main\\\", \\\"master\\\"]\\n\\njobs:\\n  validate:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - name: Checkout\\n        uses: actions/checkout@v4\\n\\n      - name: Python setup\\n        if: ${{ hashFiles('requirements.txt', 'pyproject.toml') != '' }}\\n        uses: actions/setup-python@v5\\n        with:\\n          python-version: '3.11'\\n\\n      - name: Python install and tests\\n        if: ${{ hashFiles('requirements.txt', 'pyproject.toml') != '' }}\\n        shell: bash\\n        run: |\\n          python -m pip install --upgrade pip\\n          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi\\n          if [ -f pyproject.toml ]; then pip install -e .; fi\\n          if [ -d tests ]; then python -m pytest -q; fi\\n\\n      - name: Node setup\\n        if: ${{ hashFiles('package.json') != '' }}\\n        uses: actions/setup-node@v4\\n        with:\\n          node-version: '20'\\n\\n      - name: Node install and build\\n        if: ${{ hashFiles('package.json') != '' }}\\n        shell: bash\\n        run: |\\n          npm install\\n          npm run lint --if-present\\n          npm test --if-present\\n          npm run build --if-present\\n\\n      - name: Docker build\\n        if: ${{ hashFiles('Dockerfile') != '' }}\\n        run: docker build -t generated-project:ci .\\n\"});\nconst unique = new Map();\nfor (const f of files) unique.set(f.path, f);\nreturn [{json:{...base, files:Array.from(unique.values())}}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        140
+      ],
+      "id": "6f451a17-699a-4353-b383-b2277cfd9b32",
+      "name": "Prepare File Queue"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "files",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        3000,
+        140
+      ],
+      "id": "a14c9e0a-3093-4063-a0af-b287984606bf",
+      "name": "Split Files"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions' }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GROQ_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model:$env.GROQ_MODEL || 'openai/gpt-oss-120b',temperature:0.15,max_completion_tokens:7000,response_format:{type:'json_object'},messages:[{role:'user',content:`You are writing ONE file for a portfolio AI/ML project. Do not output markdown fences. Return valid JSON only: {\"path\":\"...\",\"content\":\"...\"}. Project: ${$('Prepare Publish Record').first().json.plan.project_name}. Category: ${$('Prepare Publish Record').first().json.category}. Description: ${$('Prepare Publish Record').first().json.plan.description}. Tech stack: ${JSON.stringify($('Prepare Publish Record').first().json.plan.tech_stack || [])}. Full plan files: ${JSON.stringify($('Prepare File Queue').first().json.files)}. Current file path: ${$json.files.path}. File purpose: ${$json.files.purpose}. Language: ${$json.files.language}. Generate production-quality, runnable code. Do not include credentials, API keys, model weights, large binary files or proprietary source code. Keep paths relative and safe. For README.md include project setup, usage, architecture, learning outcomes and source attribution from ${JSON.stringify($('Prepare Publish Record').first().json.plan.sources || [])}. If this is .github/workflows/ci.yml and a static_content field exists, use it exactly.`}]}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3240,
+        140
+      ],
+      "id": "3da30024-c770-4b91-9529-b96ed529bad3",
+      "name": "Groq File Writer"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $json?.choices?.[0]?.message?.content;\nif (!raw) throw new Error('Groq file writer returned no content');\nlet generated;\ntry { generated = JSON.parse(raw); } catch (e) {\n  const cleaned = raw.replace(/^```json\\s*/,'').replace(/^```\\s*/,'').replace(/```$/,'').trim();\n  generated = JSON.parse(cleaned);\n}\nconst requested = $('Split Files').item.json.files;\nif (requested.path === '.github/workflows/ci.yml' && requested.static_content) generated.content = requested.static_content;\ngenerated.path = requested.path;\nif (typeof generated.content !== 'string') generated.content = String(generated.content ?? '');\nif (generated.content.length > 800000) throw new Error(`Generated file too large: ${generated.path}`);\nreturn [{json:{...$('Split Files').item.json, generated_file:generated}}];\n",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3480,
+        140
+      ],
+      "id": "2e272fcf-671c-43c2-bf11-5d4d0fc05386",
+      "name": "Parse Generated File"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst g = $json.generated_file;\nconst safePath = g.path.replace(/^\\/+/, '').split('/').filter(p => p && p !== '.' && p !== '..').join('/');\nif (!safePath || safePath.length > 240) throw new Error('Unsafe or invalid repository path');\nconst payload = {\n  message: `feat: add ${safePath}`,\n  content: Buffer.from(g.content, 'utf8').toString('base64'),\n};\nreturn [{json:{...$json, github_path:safePath, github_payload:payload}}];\n",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3720,
+        140
+      ],
+      "id": "08c2ee82-4e88-48d6-823e-c89d1f01d33d",
+      "name": "Prepare GitHub Content"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $env.GITHUB_API_URL + '/repos/' + $env.GITHUB_OWNER + '/' + $('Prepare Publish Record').first().json.plan.repo_name + '/contents/' + $json.github_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GITHUB_TOKEN }}"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2026-03-10"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.github_payload) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3960,
+        140
+      ],
+      "id": "4d2ff941-e242-4c3b-bee3-bc590899e797",
+      "name": "Upload File to GitHub"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst base = $('Prepare Publish Record').first().json;\nconst repo = base.plan.repo_name;\nconst owner = process.env.GITHUB_OWNER;\nconst uploadResults = $('Upload File to GitHub').all().map(x => x.json);\nconst failed = uploadResults.find(r => (r.statusCode || 200) >= 400 || r.body?.message?.toLowerCase()?.includes('error'));\nconst repoUrl = `https://github.com/${owner}/${repo}`;\nreturn [{json:{\n  project_name:base.plan.project_name,\n  repo_name:repo,\n  category:base.category,\n  github_url:repoUrl,\n  upload_count:uploadResults.length,\n  upload_ok:!failed,\n  upload_results:uploadResults.slice(-3),\n  generation_run_id:$execution.id,\n  plan:base.plan,\n  status:failed ? 'failed_upload' : 'published',\n  published_at:new Date().toISOString()\n}}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        140
+      ],
+      "id": "dacbbde8-12d2-4522-b1b8-fbe5d99fb3d2",
+      "name": "Finalize Project"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_REST_URL + '/projects?repo_name=eq.' + encodeURIComponent($json.repo_name) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({status:$json.status,github_url:$json.github_url,github_default_branch:$env.GITHUB_DEFAULT_BRANCH || 'main',updated_at:new Date().toISOString(),published_at:$json.status==='published' ? $json.published_at : null,error_message:$json.status==='published' ? null : 'One or more GitHub file uploads failed'}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4440,
+        140
+      ],
+      "id": "a57e94ba-8da4-4cc3-8e23-d52d153b88ef",
+      "name": "Supabase Final Update"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage' }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({chat_id:$env.TELEGRAM_CHAT_ID,text:`AI Project Factory published: ${$json.project_name}\nCategory: ${$json.category}\nGitHub: ${$json.github_url}\nFiles: ${$json.upload_count}`}) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        140
+      ],
+      "id": "0bd378da-99ce-4297-a728-46384f057806",
+      "name": "Optional Telegram Report"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        140
+      ],
+      "id": "c6c68dcd-432d-4a53-ab56-0b066a06e6e7",
+      "name": "Merge Source Results"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "dab0f9c4-0901-46ad-8c51-08e8408a0286",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 08:00 IST": {
+      "main": [
+        [
+          {
+            "node": "dab0f9c4-0901-46ad-8c51-08e8408a0286",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Topic Router": {
+      "main": [
+        [
+          {
+            "node": "bfffcd07-2981-4d75-b8b5-6d6fe5e1dab1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "68397d31-df62-4f13-8d5c-1f8b4a16a1d4",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "c379c064-aa3c-49a6-8ba8-16f9835aff1e",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Search": {
+      "main": [
+        [
+          {
+            "node": "c6c68dcd-432d-4a53-ab56-0b066a06e6e7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HF Models Search": {
+      "main": [
+        [
+          {
+            "node": "c6c68dcd-432d-4a53-ab56-0b066a06e6e7",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HF Datasets Search": {
+      "main": [
+        [
+          {
+            "node": "c6c68dcd-432d-4a53-ab56-0b066a06e6e7",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Source Results": {
+      "main": [
+        [
+          {
+            "node": "adc3583d-ec2e-47b1-882e-8ef9bb9eff1c",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source Pack": {
+      "main": [
+        [
+          {
+            "node": "a12f555c-831a-4815-ba4d-d7077ee435c6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Planner": {
+      "main": [
+        [
+          {
+            "node": "332d3776-2581-4270-94e0-17b0cbb9408f",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Plan": {
+      "main": [
+        [
+          {
+            "node": "f4eb1821-1de6-48f7-add7-3bdb9b888917",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Repo Check": {
+      "main": [
+        [
+          {
+            "node": "bfb9570f-2834-4a5e-a810-3d1a843eba32",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Repo Name": {
+      "main": [
+        [
+          {
+            "node": "ce87187d-701a-4a19-8938-03c39827c0c5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Repo Check": {
+      "main": [
+        [
+          {
+            "node": "740c3b10-4ec4-4dc4-b807-c8be343f6866",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Publish Record": {
+      "main": [
+        [
+          {
+            "node": "ee2f9473-7d8e-4adf-84c5-2eb9cd49bdea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert Project": {
+      "main": [
+        [
+          {
+            "node": "31767c0b-99c3-42b3-bfe7-28a37b99d14a",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Create Repository": {
+      "main": [
+        [
+          {
+            "node": "6f451a17-699a-4353-b383-b2277cfd9b32",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare File Queue": {
+      "main": [
+        [
+          {
+            "node": "a14c9e0a-3093-4063-a0af-b287984606bf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files": {
+      "main": [
+        [
+          {
+            "node": "3da30024-c770-4b91-9529-b96ed529bad3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq File Writer": {
+      "main": [
+        [
+          {
+            "node": "2e272fcf-671c-43c2-bf11-5d4d0fc05386",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated File": {
+      "main": [
+        [
+          {
+            "node": "08c2ee82-4e88-48d6-823e-c89d1f01d33d",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare GitHub Content": {
+      "main": [
+        [
+          {
+            "node": "4d2ff941-e242-4c3b-bee3-bc590899e797",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File to GitHub": {
+      "main": [
+        [
+          {
+            "node": "dacbbde8-12d2-4522-b1b8-fbe5d99fb3d2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Project": {
+      "main": [
+        [
+          {
+            "node": "a57e94ba-8da4-4cc3-8e23-d52d153b88ef",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Final Update": {
+      "main": [
+        [
+          {
+            "node": "0bd378da-99ce-4297-a728-46384f057806",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveManualExecutions": true
+  },
+  "versionId": "8fd0c2ae-39cf-42fa-8e20-70d496a1c847",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "description": "Daily AI/ML project generation and GitHub publishing factory"
+  },
+  "id": "8e57a59d-61c6-48c0-9d45-09ec1d411278",
+  "tags": []
+}
