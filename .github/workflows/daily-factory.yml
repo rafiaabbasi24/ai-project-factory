@@ -1,24 +1,26 @@
 ﻿name: Daily AI Project Factory
 
 on:
-  # Runs every day at 08:00 IST = 02:30 UTC
+  # 08:00 IST = 02:30 UTC
   schedule:
     - cron: "30 2 * * *"
-  # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
     inputs:
       category:
-        description: "AI category to generate (leave blank for auto-rotation)"
+        description: "AI category (blank = auto-rotate: LLM / Generative AI / ML / DL / NLP / Transformers / RL)"
         required: false
         default: ""
       dry_run:
-        description: "Dry run - plan only, skip repo creation"
+        description: "Dry run — plan only, no repo creation or file uploads"
         required: false
         default: "false"
         type: choice
         options:
           - "false"
           - "true"
+
+permissions:
+  contents: write
 
 jobs:
   generate-and-publish:
@@ -42,17 +44,27 @@ jobs:
 
       - name: Run AI Project Factory
         env:
+          # --- Groq ---
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_MODEL: ${{ vars.GROQ_MODEL || 'openai/gpt-oss-120b' }}
-          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
-          GITHUB_OWNER: ${{ vars.GITHUB_OWNER }}
+          # --- GitHub ---
+          # Use the built-in Actions token. If you need cross-repo creation rights
+          # add a PAT as FACTORY_GITHUB_TOKEN secret; otherwise GITHUB_TOKEN is used.
+          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          # Resolved automatically from the workflow context — no variable needed.
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          # --- Hugging Face (optional) ---
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # --- Supabase ---
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Accept both secret names for backward compatibility
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # --- Factory config (non-sensitive, safe as vars) ---
           PROJECT_CATEGORIES: ${{ vars.PROJECT_CATEGORIES || 'LLM,Generative AI,Machine Learning,Deep Learning,NLP,Transformers,Reinforcement Learning' }}
           PROJECT_GITHUB_PREFIX: ${{ vars.PROJECT_GITHUB_PREFIX || 'ai-daily-' }}
           PROJECT_VISIBILITY: ${{ vars.PROJECT_VISIBILITY || 'public' }}
           MAX_FILES: ${{ vars.MAX_FILES || '10' }}
+          # --- Run control ---
           OVERRIDE_CATEGORY: ${{ github.event.inputs.category }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: python scripts/factory_runner.py
